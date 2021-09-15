@@ -1,6 +1,6 @@
 import express from 'express';
-import createHookReceiver from 'npm-hook-receiver';
 import kafka from './kafka.js';
+import { messages } from './src/utils/dummy.js';
 
 const producer = kafka.producer()
 const admin = kafka.admin()
@@ -19,19 +19,25 @@ const main = async () => {
 
     app.use(express.json())
 
-    const randomkeyGen = Math.round(Math.random(10) * 1000);
-    console.log(randomkeyGen)
+    const randomkeyGen = () => Math.round(Math.random(10) * 1000);
+    console.log(randomkeyGen())
     app.post('/payment', async (req, res)=> {
         try {
             console.log("request being made")
-            const response = await producer.send({
-                topic,
-                messages: [{
-                    key: JSON.stringify(randomkeyGen),
-                    value: JSON.stringify(req.body)
-                }]
+            // bulkpayment
+            let topicMessages = []
+            messages.forEach(message => {
+                const format = {
+                    topic,
+                    messages: [{
+                        key: JSON.stringify(randomkeyGen()),
+                        value: JSON.stringify(message)
+                    }]
+                }
+                topicMessages.push(format)
             })
-
+            
+            const response = await producer.sendBatch({ topicMessages });
             console.log('Published message', { response })
         } catch(e) {
             console.error('Error Publishing message', e)
